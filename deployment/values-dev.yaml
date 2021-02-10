@@ -1,0 +1,66 @@
+# Default values for product.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+replicaCount: 1
+project: "orders" # team name
+business: "split" # type of app (storage, blogic, etc)
+containerPort: 3000
+protocol: TCP
+
+configmap:
+  APP_ID: "api-orders-split-services"
+  ENV_VAR: "dev"
+  PORT: "3000"
+  USER_AGENT: "UA-Ripley-Nextgen-orders"
+  LOG_LEVEL: "info"
+  REQUEST_LIMIT: "10000000kb"
+  SWAGGER_API_SPEC: "/api/v1/spec"
+  BASE_PATH: "/api/v1"
+  INITIAL_STATUS: "CREATED"
+  SPLIT_RULE: "SELLER"
+  ID_RULE: "NUME"
+  SUBORDERSTORAGEEPCL: "http://api-orders-storage-sub-cl-services/api/v1/suborder"
+  SUBORDERSTORAGEEPPE: "http://api-orders-storage-sub-pe-services/api/v1/suborder"
+
+service:
+  type: ClusterIP # LoadBalancer/NodePort
+  port: 80 # Port to expose
+  protocol: TCP # usually same protocol as the container
+  targetPort: 3000 # usually container port
+
+resources: {
+  requests: {
+    memory: "128Mi",
+    cpu: "300m"
+  },
+  limits: {
+    memory: "128Mi",
+    cpu: "300m"
+  }
+}
+
+horizontalPodAutoscaler:
+  maxReplicas: 1
+  minReplicas: 1
+  targetCPUUtilizationPercentage: 70
+
+nodeSelector: 
+  type: app
+  domain: transaction
+
+livenessProbe:
+  path: /health
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+readinessProbe:
+  path: /health
+  scheme: HTTP
+  initialDelaySeconds: 10
+  timeoutSeconds: 2
+  periodSeconds: 3
+  failureThreshold: 1
+
+#image:
+#  repository: "gcr.io/nexgen-dev-266413/x" # expected to be provided as parameter
+#  imageTag: "x" # expected to be provided as parameter

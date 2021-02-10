@@ -1,0 +1,20 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '$_REGISTRY_IMAGE:$COMMIT_SHA', '.']
+  # Push the image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_REGISTRY_IMAGE:$COMMIT_SHA']
+
+  # Replace pipeline ENV variables into files used in deploy
+  # Variables starting with _ are variables pased to the pipeline, the others are default env provided by gcp
+  - name: 'ubuntu'
+    args: ['sed', '-i', '-e', 's|NAMESPACE_VAR|$_NAMESPACE|g', 'deployment/namespace.yaml']
+
+  # Deploy via an compute instance created inside the used vpc
+  - name: gcr.io/$PROJECT_ID/remote-builder
+    env:
+      - COMMAND=gcloud container clusters get-credentials $_CONTAINER_CLUSTER --zone $_COMPUTE_ZONE --project $PROJECT_ID && 
+                kubectl apply -f workspace/deployment/namespace.yaml --record &&                 
+                helm upgrade --install $_APP_NAME workspace/deployment/charts --namespace $_NAMESPACE -f workspace/deployment/values-$_ENV_VAR.yaml --set image.imageTag=$COMMIT_SHA,image.repository=$_REGISTRY_IMAGE
+      - INSTANCE_ARGS=--network $_NETWORK --subnet sub-private-central --image worker-k8s-helm --scopes https://www.googleapis.com/auth/cloud-platform --tags builder

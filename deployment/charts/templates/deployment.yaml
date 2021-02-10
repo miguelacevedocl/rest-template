@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-deployment
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+      project: {{ .Values.project }}
+      business: {{ .Values.business }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 25% # is an optional field that specifies the maximum number of Pods that can be created over the desired number of Pods
+      maxUnavailable: 25% # is an optional field that specifies the maximum number of Pods that can be unavailable during the update process
+    type: RollingUpdate
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+        project: {{ .Values.project }}
+        business: {{ .Values.business }}
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      containers:
+      - name: {{ .Release.Name }}
+        imagePullPolicy: Always
+        image: "{{ .Values.image.repository }}:{{ .Values.image.imageTag }}"
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        ports:
+          - containerPort: {{ .Values.containerPort }}
+            protocol: {{ .Values.protocol }}
+        envFrom:
+        {{- if .Values.configmap }}
+        - configMapRef:
+            name: {{ .Release.Name }}-configmap
+        {{- end }}
+        {{- if .Values.secretName }}
+        - secretRef:
+            name: {{ .Release.Name }}-secret
+        {{- end }}
+        {{- if .Values.livenessProbe }}
+        livenessProbe: #probes to know when to restart a container
+          httpGet:
+            path: {{ .Values.livenessProbe.path }} # Path to access on the HTTP server.
+            port: {{ .Values.service.targetPort }}    #  number of the port to access on the container
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }} # Number of seconds after the container has started before liveness or readiness probes are initiated. Defaults to 0 seconds. Minimum value is 0.
+          periodSeconds: {{ .Values.livenessProbe.periodSeconds }} # How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1.
+        {{- end }}
+        {{- if .Values.readinessProbe }}
+        readinessProbe: #probes to know when to restart a container
+          httpGet:
+            path: {{ .Values.readinessProbe.path }} # Path to access on the HTTP server.
+            port: {{ .Values.service.targetPort }}    #  number of the port to access on the container
+            scheme: {{ .Values.readinessProbe.scheme }}  # Scheme to use for connecting to the host
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }} # Number of seconds after the container has started before liveness or readiness probes are initiated. Defaults to 0 seconds. Minimum value is 0.
+          periodSeconds: {{ .Values.readinessProbe.periodSeconds }} # How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1.
+          timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }} #Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1.
+          failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+        {{- end }}
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-hpa
+spec:
+  maxReplicas: {{ .Values.horizontalPodAutoscaler.maxReplicas }}
+  minReplicas: {{ .Values.horizontalPodAutoscaler.minReplicas }}
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}-deployment
+  targetCPUUtilizationPercentage: {{ .Values.horizontalPodAutoscaler.targetCPUUtilizationPercentage }}

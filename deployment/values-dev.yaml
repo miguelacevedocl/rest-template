@@ -8,19 +8,14 @@ containerPort: 3000
 protocol: TCP
 
 configmap:
-  APP_ID: "api-orders-split-services"
+  APP_ID: "api-trx-services"
   ENV_VAR: "dev"
   PORT: "3000"
-  USER_AGENT: "UA-Ripley-Nextgen-orders"
+  USER_AGENT: "UA-Zenta-trx"
   LOG_LEVEL: "info"
   REQUEST_LIMIT: "10000000kb"
   SWAGGER_API_SPEC: "/api/v1/spec"
   BASE_PATH: "/api/v1"
-  INITIAL_STATUS: "CREATED"
-  SPLIT_RULE: "SELLER"
-  ID_RULE: "NUME"
-  SUBORDERSTORAGEEPCL: "http://api-orders-storage-sub-cl-services/api/v1/suborder"
-  SUBORDERSTORAGEEPPE: "http://api-orders-storage-sub-pe-services/api/v1/suborder"
 
 service:
   type: ClusterIP # LoadBalancer/NodePort
